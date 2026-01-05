@@ -1,0 +1,125 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: anchor-postgres
+    environment:
+      POSTGRES_USER: anchor
+      POSTGRES_PASSWORD: anchor
+      POSTGRES_DB: anchor
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anchor"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: anchor-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: anchor-anvil
+    entrypoint: ["anvil", "--host", "0.0.0.0", "--block-time", "1"]
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test: ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  contracts:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: anchor-contracts
+    volumes:
+      - ./contracts:/app
+    working_dir: /app
+    environment:
+      - DEPLOYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - ARBITER_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    depends_on:
+      anvil:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        forge install foundry-rs/forge-std --no-commit || true &&
+        forge build &&
+        forge script script/Deploy.s.sol --rpc-url http://anvil:8545 --broadcast &&
+        echo 'Contracts deployed successfully'
+      "
+
+  indexer:
+    build:
+      context: ./indexer
+      dockerfile: Dockerfile
+    container_name: anchor-indexer
+    environment:
+      DATABASE_URL: postgresql://anchor:anchor@postgres:5432/anchor?schema=public
+      RPC_URL: http://anvil:8545
+      IDENTITY_CONTRACT_ADDRESS: "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+      AGREEMENTS_CONTRACT_ADDRESS: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      anvil:
+        condition: service_healthy
+      contracts:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: anchor-backend
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://anchor:anchor@postgres:5432/anchor?schema=public
+      JWT_SECRET: development-jwt-secret-change-in-production
+      RPC_URL: http://anvil:8545
+      IDENTITY_CONTRACT_ADDRESS: "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+      AGREEMENTS_CONTRACT_ADDRESS: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+      CORS_ORIGIN: http://localhost:3000
+      PORT: 3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      contracts:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: anchor-client
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      NEXT_PUBLIC_CHAIN_ID: "31337"
+      NEXT_PUBLIC_IDENTITY_CONTRACT: "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+      NEXT_PUBLIC_AGREEMENTS_CONTRACT: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
