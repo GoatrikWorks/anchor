@@ -6,6 +6,6 @@ export const config = createConfig({
   chains: [foundry],
   connectors: [injected()],
   transports: {
-    [foundry.id]: http(),
+    [foundry.id]: http("http://127.0.0.1:8545"),
   },
 });

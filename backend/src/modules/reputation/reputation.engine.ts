@@ -1,15 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-import { AgreementStatus } from "@prisma/client";
+import { AgreementStatus, Prisma } from "@prisma/client";
 
-interface ReputationComponents {
+export interface ReputationComponents {
   trustworthiness: number;
   reliability: number;
   experience: number;
   disputes: number;
+  [key: string]: number;
 }
 
-interface ReputationResult {
+export interface ReputationResult {
   score: number;
   components: ReputationComponents;
 }

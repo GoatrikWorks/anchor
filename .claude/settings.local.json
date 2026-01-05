@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(forge install:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(find:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker rm:*)",
+      "Bash(curl:*)"
     ]
   }
 }

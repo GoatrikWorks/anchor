@@ -11,12 +11,8 @@ export class WorldService {
 
   async getWorldState() {
     const stats = await this.simulation.getWorldStats();
-    const currentTick = this.simulation.getCurrentTick();
 
-    return {
-      currentTick,
-      ...stats,
-    };
+    return stats;
   }
 
   async getWorldHistory(limit = 100) {

@@ -1,4 +1,4 @@
-import { PrismaClient, AgreementStatus } from "@prisma/client";
+import { PrismaClient, AgreementStatus, Prisma } from "@prisma/client";
 import type { Log } from "viem";
 
 const prisma = new PrismaClient();
@@ -149,7 +149,7 @@ async function createAgreementEvent(
   log: Log,
   agreementId: number,
   eventType: string,
-  data: Record<string, unknown>,
+  data: Prisma.InputJsonValue,
   timestamp: bigint
 ) {
   await prisma.agreementEvent.create({
