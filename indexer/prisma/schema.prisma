@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Identity {
+  id            Int       @id
+  owner         String    @db.VarChar(42)
+  nameHash      String    @db.VarChar(66)
+  createdAt     DateTime
+  blockNumber   BigInt
+  txHash        String    @db.VarChar(66)
+
+  traits        Trait[]
+  proposedAgreements  Agreement[] @relation("ProposerAgreements")
+  acceptedAgreements  Agreement[] @relation("AcceptorAgreements")
+  reputationSnapshots ReputationSnapshot[]
+
+  @@unique([owner])
+  @@index([owner])
+}
+
+model Trait {
+  id          Int      @id @default(autoincrement())
+  identityId  Int
+  key         String   @db.VarChar(66)
+  value       String   @db.VarChar(66)
+  setAt       DateTime
+  blockNumber BigInt
+  txHash      String   @db.VarChar(66)
+
+  identity    Identity @relation(fields: [identityId], references: [id])
+
+  @@unique([identityId, key])
+  @@index([identityId])
+}
+
+model Agreement {
+  id              Int       @id
+  proposerId      Int
+  acceptorId      Int?
+  termsHash       String    @db.VarChar(66)
+  proposerDeposit String    @db.VarChar(78)
+  acceptorDeposit String    @db.VarChar(78)
+  deadline        DateTime
+  status          AgreementStatus
+  createdAt       DateTime
+  blockNumber     BigInt
+  txHash          String    @db.VarChar(66)
+
+  proposer        Identity  @relation("ProposerAgreements", fields: [proposerId], references: [id])
+  acceptor        Identity? @relation("AcceptorAgreements", fields: [acceptorId], references: [id])
+  events          AgreementEvent[]
+
+  @@index([proposerId])
+  @@index([acceptorId])
+  @@index([status])
+}
+
+enum AgreementStatus {
+  PROPOSED
+  ACTIVE
+  COMPLETED
+  BREACHED
+  DISPUTED
+  RESOLVED
+}
+
+model AgreementEvent {
+  id          Int       @id @default(autoincrement())
+  agreementId Int
+  eventType   String
+  data        Json
+  timestamp   DateTime
+  blockNumber BigInt
+  txHash      String    @db.VarChar(66)
+
+  agreement   Agreement @relation(fields: [agreementId], references: [id])
+
+  @@index([agreementId])
+  @@index([eventType])
+}
+
+model ReputationSnapshot {
+  id          Int       @id @default(autoincrement())
+  identityId  Int
+  score       Int
+  components  Json
+  calculatedAt DateTime
+  blockNumber BigInt
+
+  identity    Identity  @relation(fields: [identityId], references: [id])
+
+  @@index([identityId])
+  @@index([calculatedAt])
+}
+
+model Opportunity {
+  id          Int       @id @default(autoincrement())
+  type        OpportunityType
+  title       String
+  description String
+  requirements Json
+  rewards     Json
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  status      OpportunityStatus @default(AVAILABLE)
+  claimedBy   Int?
+  tickNumber  Int
+
+  @@index([type])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+enum OpportunityType {
+  MARKET_REQUEST
+  FACTION_REQUEST
+  EXPEDITION
+}
+
+enum OpportunityStatus {
+  AVAILABLE
+  CLAIMED
+  COMPLETED
+  EXPIRED
+}
+
+model WorldState {
+  id          Int       @id @default(autoincrement())
+  key         String    @unique
+  value       Json
+  updatedAt   DateTime  @updatedAt
+}
+
+model IndexerState {
+  id              Int    @id @default(1)
+  lastBlockNumber BigInt @default(0)
+  updatedAt       DateTime @updatedAt
+}
