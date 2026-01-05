@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(forge install:*)"
+      "Bash(forge install:*)",
+      "Bash(chmod:*)"
     ]
   }
 }
