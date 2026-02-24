@@ -36,3 +36,5 @@ contracts/broadcast/
 # Docker volumes
 postgres_data/
 redis_data/
+
+.claude
